@@ -47,9 +47,9 @@ func (bh *BranchesHandler) CreateBranch(ctx *gin.Context) {
 	branchResponse := map[string]interface{}{
 		"id":       branch.ID,
 		"name":    branch.Name,
-		"branchCode": branch.BranchCode,
+		"branch_code": branch.BranchCode,
 		"location":     branch.Location,
-		"isActive":     branch.IsActive,
+		"is_active":     branch.IsActive,
 		"created_at":    branch.CreatedAt,
 	}
 

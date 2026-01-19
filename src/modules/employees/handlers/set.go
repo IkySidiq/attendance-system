@@ -6,7 +6,6 @@ import (
 	"attandance-system/src/modules/employees/dto"
 	"attandance-system/src/exceptions"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/gin-gonic/gin"
 
 	"net/http"
@@ -14,7 +13,6 @@ import (
 
 type EmployeeHandler struct {
 	service  *model.EmployeeService
-	validate *validator.Validate
 }
 
 func NewEmployeeHandler(s *model.EmployeeService) *EmployeeHandler {
@@ -29,14 +27,7 @@ func (h *EmployeeHandler) RegisterEmployee(ctx *gin.Context) {
 	// 1️Bind JSON
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
 		// Pesan aman untuk client
-		response.BadRequest(ctx, "Invalid request body", nil)
-		return
-	}
-
-	// 2️Validasi payload (validator)
-	if err := h.validate.Struct(payload); err != nil {
-		// Bisa ditingkatkan menjadi field-level error nanti
-		response.ValidationError(ctx, err.Error(), "Validation failed")
+		response.BadRequest(ctx, err.Error(), nil)
 		return
 	}
 
@@ -57,7 +48,7 @@ func (h *EmployeeHandler) RegisterEmployee(ctx *gin.Context) {
 		}
 
 		// Error lain = 500
-		response.InternalServerError(ctx, "Internal server error", nil)
+		response.InternalServerError(ctx, err.Error(), nil)
 		return
 	}
 
@@ -73,7 +64,7 @@ func (h *EmployeeHandler) RegisterEmployee(ctx *gin.Context) {
 	// Buat session (biarkan untuk future feature)
 	sessionData, err := h.service.CreateSession(userID, deviceInfo)
 	if err != nil {
-		response.InternalServerError(ctx, "Failed to create session", nil)
+		response.InternalServerError(ctx, err.Error(), nil)
 		return
 	}
 

@@ -3,7 +3,7 @@ package exceptions
 type HTTPError interface {
 	error
 	StatusCode() int
-}
+}	
 
 type ClientError struct {
 	code    int

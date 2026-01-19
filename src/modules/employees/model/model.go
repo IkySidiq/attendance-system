@@ -102,15 +102,12 @@ func (es *EmployeeService) CreateEmployee(dto *dto.CreateEmployeeDTO, userId str
 
 	now := time.Now()
 
-	var (
-		id, name, username, email, branchId, createdBy string
-		createdAt time.Time
-	)
+	var result CreatedEmployee
 
 	query := `
-		INSERT INTO employeem
+		INSERT INTO employees
 			(id, name, username, email, branch_id, employee_code, status, password, created_at, created_by)
-		VALUem
+		VALUES
 			($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		RETURNING
 			id, name, username, email, branch_id, created_at, created_by
@@ -127,22 +124,14 @@ func (es *EmployeeService) CreateEmployee(dto *dto.CreateEmployeeDTO, userId str
 		dto.Status,
 		string(hashedPassword),
 		now,
-		now,
+		"system_admin",
 	).Scan(
-		&id, &name, &username, &email, &branchId, &createdAt, &createdBy,
+		&result.ID, &result.Name, &result.Username, &result.Email, &result.BranchId, &result.CreatedAt, &result.CreatedBy,
 	); err != nil {
 		return nil, err
 	}
 
-	return &CreatedEmployee{
-		ID:        id,
-		Name:      name,
-		Username:  username,
-		Email:     email,
-		BranchId:  branchId,
-		CreatedAt: createdAt,
-		CreatedBy: createdBy,
-	}, nil
+	return &result, nil
 }
 
 func (es *EmployeeService) CreateSession(userID string, device DeviceInfo) (map[string]interface{}, error) {
