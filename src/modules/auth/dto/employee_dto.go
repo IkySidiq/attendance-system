@@ -13,4 +13,11 @@ type CreateEmployeeDTO struct{
 	EmployeeCode  string `json:"employee_code" validate:"required"`
 	BranchId string `json:"branch_id" validate:"required"`
 	Status string `json:"status" validate:"required,oneof=active inactive suspended"`
+	RememberMe bool `json:"remember_me"`
+}
+
+type LoginDTO struct {
+	Username string `json:"username" validate:"required"`
+	Email string `json:"email" vaidate:"required"`
+	Password string `json:"password" validate:"required"`
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"attandance-system/cmd/config"
-	employeesRoutes "attandance-system/src/modules/employees/routes"
+	authRoutes "attandance-system/src/modules/auth/routes"
 	branchesRoutes "attandance-system/src/modules/branches/routes"
 )
 
@@ -28,7 +28,7 @@ func main() {
 
 	r := gin.Default()
 
-	employeesRoutes.RegisterUserRoutes(r, db)
+	authRoutes.RegisterEmployeeRoutes(r, db)
 	branchesRoutes.RegisterBranchesRoutes(r, db)
 
 	port := os.Getenv("SERVER_PORT")

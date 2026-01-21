@@ -21,7 +21,8 @@ func GenerateAccessToken(payload map[string]interface{}) (string, error) {
 
 func GenerateRefreshToken(payload map[string]interface{}) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": payload["user_id"],
+		"employee_id": payload["employee_id"],
+		"exp":payload["exp"],
 	})
 	return token.SignedString(RefreshTokenKey)
 }

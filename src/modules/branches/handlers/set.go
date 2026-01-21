@@ -6,6 +6,7 @@ import (
 	"attandance-system/src/modules/branches/model"
 	response "attandance-system/src/utils/response_helper"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,18 +44,24 @@ func (bh *BranchesHandler) CreateBranch(ctx *gin.Context) {
 		return
 	}
 
-		// Build response user
-	branchResponse := map[string]interface{}{
-		"id":       branch.ID,
-		"name":    branch.Name,
-		"branch_code": branch.BranchCode,
-		"location":     branch.Location,
-		"is_active":     branch.IsActive,
-		"created_at":    branch.CreatedAt,
+	type BranchResponse struct {
+			Id         string    `json:"id"`
+			Name       string    `json:"name"`
+			BranchCode string    `json:"branch_code"`
+			Location   string    `json:"location"`
+			IsActive   bool      `json:"is_active"`
+			CreatedAt  time.Time `json:"created_at"`
+	}
+
+	var branchResponse = BranchResponse{
+		Id: branch.ID,
+		Name: branch.Name,
+		BranchCode: branch.BranchCode,
+		Location: branch.Location,
+		IsActive: branch.IsActive,
+		CreatedAt: branch.CreatedAt,
 	}
 
 	// Kirim response
-	response.Created(ctx, map[string]interface{}{
-		"user":    branchResponse,
-	}, "User registered successfully", nil)
+	response.Created(ctx, branchResponse, "User registered successfully", nil)
 }
