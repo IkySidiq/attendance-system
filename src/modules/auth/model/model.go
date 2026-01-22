@@ -5,6 +5,7 @@ import (
 	"attandance-system/src/utils"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -37,11 +38,14 @@ type CreatedSession struct{
 	LastActivity string
 	RememberMe bool
 	SessionData string
+	LogInTime time.Time
 	Revoked string
+	DeviceInfo DeviceInfo
 	CreatedAt time.Time
 }
 
 type ResponseLogin struct{
+	Id string
 	Username string
 	Name string
 	Email string
@@ -53,6 +57,9 @@ type ResponseLogin struct{
 type DeviceInfo struct {
 	IP        string `json:"ip,omitempty"`
 	UserAgent string `json:"user_agent,omitempty"`
+	DeviceType string
+	DeviceName string
+	Platform string
 }
 
 type DeviceInfo2 struct {
@@ -155,7 +162,7 @@ func (es *EmployeeService) CreateSession(employeeId string, device DeviceInfo, r
 		return nil, err
 	}
 	defer func() {
-		_ = tx.Rollback() // rollback jika error
+		_ = tx.Rollback()
 	}()
 
 	rememberMe = utils.ParseBooleanField(rememberMe)
@@ -163,10 +170,10 @@ func (es *EmployeeService) CreateSession(employeeId string, device DeviceInfo, r
 	sessionId, _ := uuid.NewV7()
 	now := time.Now()
 
-	accessTokenExpiry := now.Add(parseExpiration(os.Getenv("JWT_EXP")))
-	refreshTokenExpiry := now.Add(parseExpiration(os.Getenv("JWT_REFRESH_EXP")))
+	accessTokenExpiry := now.Add(es.parseExpiration(os.Getenv("JWT_EXP")))
+	refreshTokenExpiry := now.Add(es.parseExpiration(os.Getenv("JWT_REFRESH_EXP")))
 
-	deviceInfo2 := parseUserAgent(device.UserAgent)
+	deviceInfo2 := es.parseUserAgent(device.UserAgent)
 
 	refreshTokenString, err := utils.GenerateRefreshToken(map[string]interface{}{
 		"employee_id": employeeId,
@@ -217,38 +224,79 @@ func (es *EmployeeService) CreateSession(employeeId string, device DeviceInfo, r
 		return nil, err
 	}
 
+	result.DeviceInfo = DeviceInfo{
+		IP: result.Ip,
+		UserAgent: result.UserAgent,
+		DeviceType: deviceInfo2.DeviceType,
+		DeviceName: deviceInfo2.DeviceName,
+		Platform: deviceInfo2.Platform,
+	}
+	result.LogInTime = time.Now()
+
 	return &result, nil
 }
 
-func (es *EmployeeService) Login(payload *dto.LoginDTO) (*ResponseLogin, error) {
+func (es *EmployeeService) Login(payload *dto.LoginDTO, deviceInfo DeviceInfo) (*ResponseLogin, *CreatedSession, error) {
 	var responseLogin ResponseLogin
+	var password string
 
 	query := `
 	SELECT
+		e.id,
 		e.username,
 		e.name,
 		e.email,
 		e.employee_code,
 		e.status,
+		e.password,
 		b.branch_name
 	FROM
 		employees e
 	JOIN
-		branches b on b.id = e.branch_id
+		branches b ON b.id = e.branch_id
+	WHERE
+		e.username = $1
+		AND e.status = $2
 	`
 
-	if err := es.db.QueryRow(query).Scan(
-		responseLogin.Username, 
-		responseLogin.Name, 
-		responseLogin.Email, 
-		responseLogin.EmployeeCode, 
-		responseLogin.Status, 
-		responseLogin.BranchName,
-	); err != nil {
-		return nil, err
+	err := es.db.QueryRow(query, payload.Username, "active").Scan(
+		&responseLogin.Id,
+		&responseLogin.Username,
+		&responseLogin.Name,
+		&responseLogin.Email,
+		&responseLogin.EmployeeCode,
+		&responseLogin.Status,
+		&password,
+		&responseLogin.BranchName,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, exceptions.NewClientError(
+				400,
+				err.Error(),
+			)
+		}
+		return nil, nil, exceptions.NewClientError(500, err.Error())
 	}
 
-	return &responseLogin, nil
+	if err := es.comparePassword(payload.Password, password); err != nil {
+		return nil, nil, exceptions.NewClientError(
+			401,
+			"Password or Email are invalid",
+		)
+	}
+
+	if err := es.updateLastLogin(responseLogin.Id); err != nil {
+		exceptions.NewClientError(400, "Bad euyy")
+	}
+
+	sessionData, err := es.CreateSession(responseLogin.Id, deviceInfo, payload.RememberMe)
+	if err != nil {
+		exceptions.NewClientError(400, "Bad euyy")
+	}
+
+	return &responseLogin, sessionData, nil
 }
 
 func (es *EmployeeService) GetAllEmployees(page, limit int, search string) ([]map[string]interface{}, int, error) {
@@ -281,7 +329,7 @@ func (es *EmployeeService) isFieldExists(field string, value string) (bool, erro
 	return exists, nil
 }
 
-func parseExpiration(expiration string) time.Duration {
+func (es *EmployeeService) parseExpiration(expiration string) time.Duration {
 	units := map[string]time.Duration{
 		"s": time.Second,
 		"m": time.Minute,
@@ -311,7 +359,7 @@ func parseExpiration(expiration string) time.Duration {
 	return 7 * 24 * time.Hour
 }
 
-func parseUserAgent(userAgent string) DeviceInfo2 {
+func (es *EmployeeService) parseUserAgent(userAgent string) DeviceInfo2 {
 	if strings.TrimSpace(userAgent) == "" {
 		return DeviceInfo2{
 			DeviceType: "other",
@@ -364,4 +412,26 @@ func parseUserAgent(userAgent string) DeviceInfo2 {
 		Platform:   platform,
 		DeviceName: deviceName,
 	}
+}
+
+func (es *EmployeeService) comparePassword(password, hashedPassword string) error {
+	return bcrypt.CompareHashAndPassword(
+		[]byte(hashedPassword),
+		[]byte(password),
+	)
+}
+
+func (es *EmployeeService) updateLastLogin(userId string) (error) {
+	var id string
+
+	query := `
+		UPDATE employees SET last_login_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1 RETURNING id
+	`
+
+	if err := es.db.QueryRow(query, userId).Scan(&id); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -18,6 +18,6 @@ type CreateEmployeeDTO struct{
 
 type LoginDTO struct {
 	Username string `json:"username" validate:"required"`
-	Email string `json:"email" vaidate:"required"`
 	Password string `json:"password" validate:"required"`
+	RememberMe bool `json:"remember_me"`
 }

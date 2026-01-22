@@ -16,8 +16,8 @@ func RegisterEmployeeRoutes(r *gin.Engine, db *sql.DB) {
 
 	employeeGroup := r.Group("/employees")
 	{
-		employeeGroup.POST("/register", employeeHandler.RegisterEmployee)
-		employeeGroup.POST("/login", middleware.JWTAuthMiddleware(), employeeHandler.Login)
+		employeeGroup.POST("/register", employeeHandler.CreateEmployee)
+		employeeGroup.POST("/login", employeeHandler.Login)
 		employeeGroup.GET("/", middleware.JWTAuthMiddleware(), employeeHandler.GetAllEmployees)
 	}
 }

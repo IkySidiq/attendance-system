@@ -14,7 +14,12 @@ var RefreshTokenKey = []byte(os.Getenv("REFRESH_TOKEN_KEY"))
 func GenerateAccessToken(payload map[string]interface{}) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": payload["user_id"],
-		"exp":     time.Now().Add(time.Second * 1800).Unix(), // ACCESS_TOKEN_AGE
+		"exp":     time.Now().Add(time.Second * 1800).Unix(),
+		"username": payload["username"],
+		"name": payload["name"],
+		"email": payload["email"],
+		"status": payload["status"],
+		"branch_id": payload["branch_id"],
 	})
 	return token.SignedString(AccessTokenKey)
 }
